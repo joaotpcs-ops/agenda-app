@@ -742,9 +742,14 @@ function buildRow(t,isNew){
     <td><select class="isel" onchange="uRec('${tid}',this.value)" onclick="event.stopPropagation()" ${noDate?'disabled':''}>
       ${recOpts}</select></td>
     <td>${isNew
-      ?`<input class="itxt" placeholder="PREENCHER" value="${escH(t.description||'')}"
-          onchange="uF('${tid}','description',this.value)" onclick="event.stopPropagation()"
-          onkeydown="if(event.key==='Enter'){event.preventDefault();commitNew()}">`
+      ?`<div style="display:flex;align-items:center;gap:4px;">
+          <input class="itxt" placeholder="PREENCHER" value="${escH(t.description||'')}" style="flex:1;"
+            onchange="uF('${tid}','description',this.value)" onclick="event.stopPropagation()"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();commitNew()}">
+          <button onclick="event.stopPropagation();commitNew()" 
+            style="background:var(--acc);color:#000;border:none;padding:4px 8px;border-radius:3px;cursor:pointer;font-size:14px;line-height:1;font-weight:700;"
+            title="CRIAR TAREFA">✓</button>
+        </div>`
       :`<span style="display:flex;align-items:center;overflow:hidden;">
           ${t.seriesId?'<span class="sdot"></span>':''}
           <span style="overflow:hidden;text-overflow:ellipsis;" title="${escH(t.description||'')}">${escH(t.description||'—')}</span>
