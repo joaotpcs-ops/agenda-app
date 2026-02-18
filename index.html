@@ -638,9 +638,9 @@ function renderTable(){
 
   const cols=[
     {id:'agenda',     lbl:'AGENDA',       fkey:'agenda',     fopts:uAg.map(v=>({v,l:v}))},
-    {id:'color',      lbl:'TIPO',         fkey:'color',      fopts:uCol.map(c=>({v:c,l:CEMJ[c],sw:c}))},
     {id:'date',       lbl:'DATA',         fkey:'date',       ftxt:true},
     {id:'day',        lbl:'DIA',          fkey:'day',        fopts:['2ª','3ª','4ª','5ª','6ª','S','D'].map(v=>({v,l:v}))},
+    {id:'color',      lbl:'TIPO',         fkey:'color',      fopts:uCol.map(c=>({v:c,l:CEMJ[c],sw:c}))},
     {id:'recurrence', lbl:'PERIODICIDADE',fkey:'recurrence', fopts:uRec.map(v=>({v,l:v}))},
     {id:'subject',    lbl:'ASSUNTO',      fkey:'subject',    fopts:uSub.map(v=>({v,l:v}))},
     {id:'subSubject', lbl:'SUB-ASSUNTO',  fkey:'subSubject', fopts:uSub2.map(v=>({v,l:v}))},
@@ -732,17 +732,17 @@ function buildRow(t,isNew){
   const dbl=isNew?'':` ondblclick="openModal('${tid}')"`;
 
   return`<tr class="${isNew?'nr':''}"${dbl}>
-    <td><div class="cbar" style="${cbar}"></div>
-      <select class="isel" onchange="uAg('${tid}',this.value)" onclick="event.stopPropagation()" style="padding-left:12px;">
+    <td>
+      <select class="isel" onchange="uAg('${tid}',this.value)" onclick="event.stopPropagation()">
         ${isNew?`<option value="" disabled ${!t.agenda?'selected':''}>—</option>`:''}
         ${agOpts}
         ${isNew?`<option value="__NA__">+ NOVA...</option>`:''}
       </select>
     </td>
-    <td><select class="isel" onchange="uColor('${tid}',this.value)" onclick="event.stopPropagation()" style="font-size:12px;">${colOpts}</select></td>
     <td data-dc="1" style="cursor:pointer;" onclick="event.stopPropagation();openDP(event,'${tid}')" ondblclick="event.stopPropagation()">
       <span id="dl-${tid}">${dateDisplay}</span></td>
     <td style="text-align:center;">${day}</td>
+    <td><select class="isel" onchange="uColor('${tid}',this.value)" onclick="event.stopPropagation()" style="font-size:12px;">${colOpts}</select></td>
     <td><select class="isel" onchange="uRec('${tid}',this.value)" onclick="event.stopPropagation()" ${noDate?'disabled':''}>
       ${recOpts}</select></td>
     <td><select class="isel" onchange="uSub('${tid}',this.value)" onclick="event.stopPropagation()">
