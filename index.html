@@ -298,6 +298,9 @@ const auth = firebase.auth();
 const db   = firebase.firestore();
 let currentUser = null;
 let unsubscribe = null; // Firestore listener
+let isLocalEdit = false; // Flag to prevent onSnapshot during local edits
+let skipNextRender = false;
+let saveTimeout = null;
 let saveTimeout = null; // Debounce saves
 let skipNextRender = false; // Don't destroy NID during local edits
 
@@ -777,13 +780,13 @@ function uF(tid,field,val){const t=getT(tid);t[field]=val;save();}
 function uAg(tid,val){
   if(val==='__NA__'){
     const n=prompt('NOME DA NOVA AGENDA:');
-    if(n&&n.trim()){const name=n.trim().toUpperCase();agendas.push(name);subj[name]={};const t=getT(tid);t.agenda=name;save();}
+    if(n&&n.trim()){const name=n.trim().toUpperCase();agendas.push(name);subj[name]={};const t=getT(tid);t.agenda=name;renderTable();save();}
     else renderTable();
     return;
   }
-  const t=getT(tid);t.agenda=val;t.subject='';t.subSubject='';save();
+  const t=getT(tid);t.agenda=val;t.subject='';t.subSubject='';renderTable();save();
 }
-function uColor(tid,val){const t=getT(tid);t.color=val;save();}
+function uColor(tid,val){const t=getT(tid);t.color=val;renderTable();save();}
 function uSub(tid,val){
   if(val==='__NS__'){
     const t=getT(tid);
@@ -793,11 +796,11 @@ function uSub(tid,val){
       const s=n.trim().toUpperCase();
       ensureSub(t.agenda,s);
       t.subject=s;t.subSubject='';
-      save();
+      renderTable();save();
     }
     return;
   }
-  const t=getT(tid);t.subject=val;t.subSubject='';save();
+  const t=getT(tid);t.subject=val;t.subSubject='';renderTable();save();
 }
 function uSub2(tid,val){
   if(val==='__NS2__'){
@@ -808,13 +811,13 @@ function uSub2(tid,val){
       const s=n.trim().toUpperCase();
       ensureSub2(t.agenda,t.subject,s);
       t.subSubject=s;
-      save();
+      renderTable();save();
     }
     return;
   }
-  const t=getT(tid);t.subSubject=val;save();
+  const t=getT(tid);t.subSubject=val;renderTable();save();
 }
-function uRec(tid,val){const t=getT(tid);t.recurrence={type:val};save();}
+function uRec(tid,val){const t=getT(tid);t.recurrence={type:val};renderTable();save();}
 
 function commitNew(){
   const row=document.querySelector('tr.nr');
