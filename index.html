@@ -352,9 +352,8 @@ function startSync(){
   if(!currentUser) return;
   const docRef=db.collection('users').doc(currentUser.uid).collection('data').doc('main');
 
-  // Listen for realtime changes
-  unsubscribe=docRef.onSnapshot(snap=>{
-    if(skipNextRender){skipNextRender=false;return;} // Skip if we just saved locally
+  // Load initial data once
+  docRef.get().then(snap=>{
     if(snap.exists){
       const p=snap.data();
       tasks=(p.tasks||[]).filter(t=>t.id!==NID);
@@ -371,7 +370,7 @@ function startSync(){
     buildRecGrid();
     renderTable();
     setSyncDot('on');
-  }, err=>{
+  }).catch(err=>{
     console.error(err);
     setSyncDot('err');
   });
@@ -379,22 +378,17 @@ function startSync(){
 
 function save(){
   if(!currentUser){
-    // Fallback to localStorage if not logged in
     localStorage.setItem('agd4',JSON.stringify({tasks,agendas,subj}));
     return;
   }
-  skipNextRender=true; // Don't re-render when our own save comes back
   setSyncDot('off');
-  if(saveTimeout) clearTimeout(saveTimeout);
-  saveTimeout=setTimeout(()=>{
-    const docRef=db.collection('users').doc(currentUser.uid).collection('data').doc('main');
-    const toSave={
-      tasks: tasks.filter(t=>t.id!==NID).map(t=>({...t})),
-      agendas, subj,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    docRef.set(toSave).then(()=>setSyncDot('on')).catch(err=>{console.error(err);setSyncDot('err');});
-  }, 500);
+  const docRef=db.collection('users').doc(currentUser.uid).collection('data').doc('main');
+  const toSave={
+    tasks: tasks.filter(t=>t.id!==NID).map(t=>({...t})),
+    agendas, subj,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  docRef.set(toSave).then(()=>setSyncDot('on')).catch(err=>{console.error(err);setSyncDot('err');});
 }
 
 // ── INIT ───────────────────────────────────────────────────
