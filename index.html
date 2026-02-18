@@ -712,7 +712,6 @@ function renderTable(){
 function buildRow(t,isNew){
   const tid=t.id;
   const ag=t.agenda||'';
-  const cbar=t.color?`background:${t.color}`:'background:#333;';
   const dateDisplay=t.date?fmtDate(t.date):'—';
   const day=getDay(t.date);
   const noDate=!t.date;
@@ -916,7 +915,7 @@ function setupRH(){
       let mx=sp.offsetWidth+24;document.body.removeChild(sp);
       document.querySelectorAll(`#tbl tbody tr td:nth-child(${ci+1})`).forEach(td=>{
         const dl=td.querySelector('[id^="dl-"]');const sel=td.querySelector('select');const inp=td.querySelector('input');
-        const spn=td.querySelector('span:not(.sdot):not(.cbar)');
+        const spn=td.querySelector('span:not(.sdot)');
         let txt=dl?dl.textContent:(sel&&sel.selectedIndex>=0?sel.options[sel.selectedIndex].text:'');
         if(!txt&&inp)txt=inp.value;if(!txt&&spn)txt=spn.textContent;
         if(!txt||txt==='—')return;
