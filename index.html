@@ -584,10 +584,20 @@ function getFiltered(){
   });
 }
 function getSorted(arr){
+  const colorPriority={'#ff5252':1,'#2196f3':2,'#4caf50':3,'#ffc107':4,'#9e9e9e':5};
   const a=[...arr];
   if(!sortCol)return a.sort((x,y)=>{
+    // Sort by date first
     if(x.date&&!y.date)return-1;if(!x.date&&y.date)return 1;
-    if(x.date&&y.date)return x.date<y.date?-1:x.date>y.date?1:0;return 0;
+    if(x.date&&y.date){
+      if(x.date<y.date)return-1;
+      if(x.date>y.date)return 1;
+      // Same date - sort by color priority: red, blue, green, yellow, grey
+      const xp=colorPriority[x.color]||999;
+      const yp=colorPriority[y.color]||999;
+      return xp-yp;
+    }
+    return 0;
   });
   return a.sort((x,y)=>{
     let av,bv;
@@ -631,9 +641,9 @@ function renderTable(){
     {id:'color',      lbl:'TIPO',         fkey:'color',      fopts:uCol.map(c=>({v:c,l:CEMJ[c],sw:c}))},
     {id:'date',       lbl:'DATA',         fkey:'date',       ftxt:true},
     {id:'day',        lbl:'DIA',          fkey:'day',        fopts:['2ª','3ª','4ª','5ª','6ª','S','D'].map(v=>({v,l:v}))},
+    {id:'recurrence', lbl:'PERIODICIDADE',fkey:'recurrence', fopts:uRec.map(v=>({v,l:v}))},
     {id:'subject',    lbl:'ASSUNTO',      fkey:'subject',    fopts:uSub.map(v=>({v,l:v}))},
     {id:'subSubject', lbl:'SUB-ASSUNTO',  fkey:'subSubject', fopts:uSub2.map(v=>({v,l:v}))},
-    {id:'recurrence', lbl:'PERIODICIDADE',fkey:'recurrence', fopts:uRec.map(v=>({v,l:v}))},
     {id:'description',lbl:'DESCRIÇÃO',    fkey:'description',ftxt:true},
     {id:'_em',        lbl:'📧',           fkey:null},
     {id:'_nt',        lbl:'NOTAS',        fkey:null},
@@ -733,14 +743,14 @@ function buildRow(t,isNew){
     <td data-dc="1" style="cursor:pointer;" onclick="event.stopPropagation();openDP(event,'${tid}')" ondblclick="event.stopPropagation()">
       <span id="dl-${tid}">${dateDisplay}</span></td>
     <td style="text-align:center;">${day}</td>
+    <td><select class="isel" onchange="uRec('${tid}',this.value)" onclick="event.stopPropagation()" ${noDate?'disabled':''}>
+      ${recOpts}</select></td>
     <td><select class="isel" onchange="uSub('${tid}',this.value)" onclick="event.stopPropagation()">
       <option value="">—</option>${subOpts}<option value="__NS__">+ NOVO...</option>
     </select></td>
     <td><select class="isel" onchange="uSub2('${tid}',this.value)" onclick="event.stopPropagation()">
       <option value="">—</option>${sub2Opts}<option value="__NS2__">+ NOVO...</option>
     </select></td>
-    <td><select class="isel" onchange="uRec('${tid}',this.value)" onclick="event.stopPropagation()" ${noDate?'disabled':''}>
-      ${recOpts}</select></td>
     <td>${isNew
       ?`<div style="display:flex;align-items:center;gap:4px;">
           <input class="itxt" placeholder="PREENCHER" value="${escH(t.description||'')}" style="flex:1;"
