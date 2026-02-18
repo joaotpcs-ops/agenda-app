@@ -67,7 +67,7 @@ input,select,textarea,button{font-family:'Inter',sans-serif;}
 .sb-sub2{padding:2px 10px;font-size:9px;color:var(--t3);cursor:pointer;display:flex;align-items:center;}
 .sb-sub2:hover{color:var(--t2);}
 .sb-on{color:var(--acc)!important;font-weight:700;}
-.sb-cnt{margin-left:auto;font-size:9px;color:var(--t3);font-weight:400;}
+.sb-cnt{margin-left:auto;font-size:9px;color:var(--acc);font-weight:600;background:var(--accd);padding:1px 5px;border-radius:3px;}
 .sb-del{display:inline;font-size:11px;color:var(--t3);line-height:1;padding:0 2px;margin-left:3px;cursor:pointer;}
 .sb-del:hover{color:var(--red);}
 .sb-empty{padding:12px;font-size:9px;color:var(--t3);text-align:center;}
@@ -80,9 +80,9 @@ th{border-bottom:2px solid var(--brd);border-right:1px solid var(--brd);position
 .thb{padding:4px 5px 3px 5px;}
 .thl{font-size:9px;font-weight:700;color:var(--t2);display:block;margin-bottom:2px;white-space:nowrap;}
 .thc{display:flex;gap:1px;}
-.ic{padding:1px 3px;border-radius:2px;cursor:pointer;color:var(--t3);font-size:8px;background:none;border:none;line-height:1.5;}
-.ic:hover{background:var(--bg3);color:var(--t2);}
-.ic.on{color:var(--acc);background:var(--accd);}
+.ic{padding:1px 3px;border-radius:2px;cursor:pointer;color:var(--t2);font-size:8px;background:none;border:none;line-height:1.5;}
+.ic:hover{background:var(--bg3);color:var(--acc);}
+.ic.on{color:var(--acc);background:var(--accd);font-weight:700;}
 .rh{position:absolute;right:0;top:0;bottom:0;width:4px;cursor:col-resize;z-index:10;}
 .rh:hover,.rh.act{background:var(--acc);}
 
@@ -298,13 +298,19 @@ const auth = firebase.auth();
 const db   = firebase.firestore();
 let currentUser = null;
 let unsubscribe = null; // Firestore listener
+let saveTimeout = null; // Debounce saves
+let skipNextRender = false; // Don't destroy NID during local edits
 
 // ── AUTH ───────────────────────────────────────────────────
 function doLogin(){
   const provider = new firebase.auth.GoogleAuthProvider();
+  // Try popup first, fallback to redirect if it fails (file:// protocol)
   auth.signInWithPopup(provider).catch(err=>{
-    console.error(err);
-    document.getElementById('loginErr').style.display='block';
+    console.error('Popup failed, trying redirect...', err);
+    auth.signInWithRedirect(provider).catch(err2=>{
+      console.error(err2);
+      document.getElementById('loginErr').style.display='block';
+    });
   });
 }
 function doLogout(){
@@ -345,6 +351,7 @@ function startSync(){
 
   // Listen for realtime changes
   unsubscribe=docRef.onSnapshot(snap=>{
+    if(skipNextRender){skipNextRender=false;return;} // Skip if we just saved locally
     if(snap.exists){
       const p=snap.data();
       tasks=(p.tasks||[]).filter(t=>t.id!==NID);
@@ -373,14 +380,18 @@ function save(){
     localStorage.setItem('agd4',JSON.stringify({tasks,agendas,subj}));
     return;
   }
+  skipNextRender=true; // Don't re-render when our own save comes back
   setSyncDot('off');
-  const docRef=db.collection('users').doc(currentUser.uid).collection('data').doc('main');
-  const toSave={
-    tasks: tasks.filter(t=>t.id!==NID).map(t=>({...t})),
-    agendas, subj,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  };
-  docRef.set(toSave).then(()=>setSyncDot('on')).catch(err=>{console.error(err);setSyncDot('err');});
+  if(saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout=setTimeout(()=>{
+    const docRef=db.collection('users').doc(currentUser.uid).collection('data').doc('main');
+    const toSave={
+      tasks: tasks.filter(t=>t.id!==NID).map(t=>({...t})),
+      agendas, subj,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    docRef.set(toSave).then(()=>setSyncDot('on')).catch(err=>{console.error(err);setSyncDot('err');});
+  }, 500);
 }
 
 // ── INIT ───────────────────────────────────────────────────
