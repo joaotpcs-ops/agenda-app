@@ -297,10 +297,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db   = firebase.firestore();
 let currentUser = null;
-let unsubscribe = null; // Firestore listener
-let isLocalEdit = false;
-let saveTimeout = null; // Debounce saves
-let skipNextRender = false; // Don't destroy NID during local edits
+let unsubscribe = null;
 
 // ── AUTH ───────────────────────────────────────────────────
 function doLogin(){
