@@ -171,13 +171,14 @@ tr:hover td{background:#ffffff05;}
   </div>
 </div>
 
-<div class="app" id="app">
+<div class="app sb-off" id="app">
   <div class="topbar">
     <div class="logo" onclick="toggleSb()">📋 AGENDA</div>
     <div class="user-info">
       <span class="sync-dot" id="syncDot"></span>
       <img class="user-avatar" id="userAvatar" src="" style="display:none">
       <span class="user-name" id="userName"></span>
+      <button class="logout-btn" onclick="openTrash()" style="margin-right:8px;">🗑️ LIXO</button>
       <button class="logout-btn" onclick="doLogout()">SAIR</button>
       <button class="bk" onclick="doBackup()">💾 CSV</button>
     </div>
@@ -354,6 +355,7 @@ function startSync(){
       tasks=(p.tasks||[]).filter(t=>t.id!==NID);
       agendas=(p.agendas||['PESSOAL','PROFISSIONAL']).filter(a=>a!=='TODAS');
       subj=p.subj||{};
+      trash=p.trash||[];
       agendas.forEach(a=>{if(!subj[a])subj[a]={};});
     } else {
       // First time — init with defaults
@@ -371,16 +373,30 @@ function startSync(){
   });
 }
 
+function openTrash(){
+  if(!trash.length){alert('LIXO VAZIO');return;}
+  const now=Date.now();
+  const list=trash.map((t,i)=>{
+    const age=Math.floor((now-t.deletedAt)/(1000*60*60*24));
+    return `${i+1}. ${t.description||'(SEM DESCRIÇÃO)'} - ${age}d atrás`;
+  }).join('\n');
+  const idx=prompt('LIXO (ÚLTIMOS 7 DIAS):\n\n'+list+'\n\nNÚMERO PARA RESTAURAR (ou CANCELAR):');
+  if(idx){
+    const n=parseInt(idx);
+    if(n>=1&&n<=trash.length) restoreFromTrash(trash[n-1].id);
+  }
+}
+
 function save(){
   if(!currentUser){
-    localStorage.setItem('agd4',JSON.stringify({tasks,agendas,subj}));
+    localStorage.setItem('agd4',JSON.stringify({tasks,agendas,subj,trash}));
     return;
   }
   setSyncDot('off');
   const docRef=db.collection('users').doc(currentUser.uid).collection('data').doc('main');
   const toSave={
     tasks: tasks.filter(t=>t.id!==NID).map(t=>({...t})),
-    agendas, subj,
+    agendas, subj, trash,
     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   };
   docRef.set(toSave).then(()=>setSyncDot('on')).catch(err=>{console.error(err);setSyncDot('err');});
@@ -745,20 +761,15 @@ function buildRow(t,isNew){
     <td><select class="isel" onchange="uRec('${tid}',this.value)" onclick="event.stopPropagation()" ${noDate?'disabled':''}>
       ${recOpts}</select></td>
     <td><select class="isel" onchange="uSub('${tid}',this.value)" onclick="event.stopPropagation()">
-      <option value="">—</option>${subOpts}<option value="__NS__">+ NOVO...</option>
+      <option value="__NS__">+ NOVO...</option><option value="">—</option>${subOpts}
     </select></td>
     <td><select class="isel" onchange="uSub2('${tid}',this.value)" onclick="event.stopPropagation()">
-      <option value="">—</option>${sub2Opts}<option value="__NS2__">+ NOVO...</option>
+      <option value="__NS2__">+ NOVO...</option><option value="">—</option>${sub2Opts}
     </select></td>
     <td>${isNew
-      ?`<div style="display:flex;align-items:center;gap:4px;">
-          <input class="itxt" placeholder="PREENCHER" value="${escH(t.description||'')}" style="flex:1;"
-            onchange="uF('${tid}','description',this.value)" onclick="event.stopPropagation()"
-            onkeydown="if(event.key==='Enter'){event.preventDefault();commitNew()}">
-          <button onclick="event.stopPropagation();commitNew()" 
-            style="background:var(--acc);color:#000;border:none;padding:4px 8px;border-radius:3px;cursor:pointer;font-size:14px;line-height:1;font-weight:700;"
-            title="CRIAR TAREFA">✓</button>
-        </div>`
+      ?`<input class="itxt" placeholder="PREENCHER" value="${escH(t.description||'')}"
+          onchange="uF('${tid}','description',this.value)" onclick="event.stopPropagation()"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();commitNew()}">`
       :`<span style="display:flex;align-items:center;overflow:hidden;">
           ${t.seriesId?'<span class="sdot"></span>':''}
           <span style="overflow:hidden;text-overflow:ellipsis;" title="${escH(t.description||'')}">${escH(t.description||'—')}</span>
@@ -768,7 +779,10 @@ function buildRow(t,isNew){
     <td style="text-align:center;">${t.notes?'✓':'—'}</td>
     <td style="text-align:center;" ondblclick="event.stopPropagation()">
       ${isNew?`<span style="font-size:8px;color:var(--acc);">NOVA</span>`
-             :`<span style="cursor:pointer;" onclick="event.stopPropagation();delDirect('${tid}')">🗑️</span>`}
+             :`<span style="display:flex;gap:4px;justify-content:center;">
+                <span style="cursor:pointer;" onclick="event.stopPropagation();duplicateTask('${tid}')" title="DUPLICAR">📋</span>
+                <span style="cursor:pointer;" onclick="event.stopPropagation();delDirect('${tid}')" title="ELIMINAR">🗑️</span>
+              </span>`}
     </td>
   </tr>`;
 }
@@ -822,6 +836,31 @@ function uSub2(tid,val){
 }
 function uRec(tid,val){const t=getT(tid);t.recurrence={type:val};renderTable();save();}
 
+// ── TRASH SYSTEM ───────────────────────────────────────────
+let trash=[];
+function moveToTrash(taskIds){
+  const now=Date.now();
+  taskIds.forEach(tid=>{
+    const t=tasks.find(x=>x.id===tid);
+    if(t) trash.push({...t,deletedAt:now});
+  });
+  tasks=tasks.filter(t=>!taskIds.includes(t.id));
+  // Auto-clean trash older than 7 days
+  const sevenDays=7*24*60*60*1000;
+  trash=trash.filter(t=>(now-t.deletedAt)<sevenDays);
+  save();renderTable();
+}
+function restoreFromTrash(tid){
+  const idx=trash.findIndex(t=>t.id===tid);
+  if(idx>=0){
+    const t=trash[idx];
+    delete t.deletedAt;
+    tasks.push(t);
+    trash.splice(idx,1);
+    save();renderTable();
+  }
+}
+
 function commitNew(){
   const row=document.querySelector('tr.nr');
   if(!row)return;
@@ -829,13 +868,13 @@ function commitNew(){
   const desc=inp?inp.value.trim():'';
   if(!desc)return;
   const nid=tasks.find(t=>t.id===NID);
-  // Read selects directly from DOM
+  // Read selects - NEW ORDER: agenda, tipo, periodicidade, assunto, sub-assunto
   const sels=row.querySelectorAll('select.isel');
   const ag=sels[0]?sels[0].value:'';
   const color=sels[1]?sels[1].value:'';
-  const subject=sels[2]?sels[2].value:'';
-  const subSubject=sels[3]?sels[3].value:'';
-  const rec=sels[4]&&!sels[4].disabled?sels[4].value:'none';
+  const rec=sels[2]&&!sels[2].disabled?sels[2].value:'none';
+  const subject=sels[3]?sels[3].value:'';
+  const subSubject=sels[4]?sels[4].value:'';
   const date=nid?nid.date:null;
   const newTask={
     id:Date.now().toString(),
@@ -847,6 +886,14 @@ function commitNew(){
   tasks.push(newTask);
   // Create fresh empty NID for next task
   tasks.push({id:NID,agenda:'',color:'',date:null,subject:'',subSubject:'',recurrence:{type:'none'},description:'',notes:'',emails:[]});
+  save();renderTable();
+}
+
+function duplicateTask(tid){
+  const t=tasks.find(x=>x.id===tid);
+  if(!t)return;
+  const dup={...t,id:Date.now().toString(),seriesId:null};
+  tasks.push(dup);
   save();renderTable();
 }
 
@@ -878,12 +925,12 @@ function delDirect(tid){
   const t=tasks.find(x=>x.id===tid);if(!t)return;
   if(t.seriesId){
     const c=confirm('ELIMINAR SÉRIE COMPLETA?\nOK = TODA A SÉRIE\nCANCELAR = SÓ ESTA');
-    tasks=c?tasks.filter(x=>x.seriesId!==t.seriesId):tasks.filter(x=>x.id!==tid);
+    const ids=c?tasks.filter(x=>x.seriesId===t.seriesId).map(x=>x.id):[tid];
+    moveToTrash(ids);
   }else{
-    if(!confirm('ELIMINAR ESTA TAREFA?'))return;
-    tasks=tasks.filter(x=>x.id!==tid);
+    if(!confirm('MOVER PARA O LIXO?'))return;
+    moveToTrash([tid]);
   }
-  save();renderTable();
 }
 function delTask(){
   if(!editId)return;
@@ -973,9 +1020,8 @@ function bgClose(e){if(e.target.id==='modal')closeModal();}
 function reloadSub(){
   const ag=document.getElementById('fAg').value;
   const sel=document.getElementById('fSub');const v=sel.value;
-  sel.innerHTML='<option value="">—</option>'+
-    getSubNames(ag).map(s=>`<option value="${s}">${s}</option>`).join('')+
-    '<option value="__NS__">+ NOVO...</option>';
+  sel.innerHTML='<option value="__NS__">+ NOVO...</option><option value="">—</option>'+
+    getSubNames(ag).map(s=>`<option value="${s}">${s}</option>`).join('');
   if(v)sel.value=v;
 }
 function reloadSub2(){
@@ -983,9 +1029,8 @@ function reloadSub2(){
   const sub=document.getElementById('fSub').value;
   const sel=document.getElementById('fSub2');const v=sel.value;
   if(!sub||sub==='__NS__'){sel.innerHTML='<option value="">—</option>';return;}
-  sel.innerHTML='<option value="">—</option>'+
-    getSub2Names(ag,sub).map(s=>`<option value="${s}">${s}</option>`).join('')+
-    '<option value="__NS2__">+ NOVO...</option>';
+  sel.innerHTML='<option value="__NS2__">+ NOVO...</option><option value="">—</option>'+
+    getSub2Names(ag,sub).map(s=>`<option value="${s}">${s}</option>`).join('');
   if(v)sel.value=v;
 }
 
