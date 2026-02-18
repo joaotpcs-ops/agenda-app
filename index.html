@@ -702,14 +702,18 @@ function renderTable(){
   document.getElementById('tbody').innerHTML=b;
   
   // Force new row selects to match NID object values
-  const newRow=document.querySelector('tr.nr');
-  if(newRow&&nid){
-    const selects=newRow.querySelectorAll('select.isel');
-    if(selects[0]&&nid.agenda) selects[0].value=nid.agenda;
-    if(selects[1]&&nid.color) selects[1].value=nid.color;
-    if(selects[2]&&nid.subject) selects[2].value=nid.subject;
-    if(selects[3]&&nid.subSubject) selects[3].value=nid.subSubject;
-  }
+  // Use setTimeout to ensure DOM is fully updated and dropdowns are built
+  setTimeout(()=>{
+    const newRow=document.querySelector('tr.nr');
+    if(newRow&&nid){
+      const selects=newRow.querySelectorAll('select.isel');
+      if(selects[0]&&nid.agenda) selects[0].value=nid.agenda;
+      if(selects[1]&&nid.color) selects[1].value=nid.color;
+      if(selects[2]&&nid.subject) selects[2].value=nid.subject;
+      if(selects[3]&&nid.subSubject) selects[3].value=nid.subSubject;
+      if(selects[4]&&nid.recurrence&&nid.recurrence.type) selects[4].value=nid.recurrence.type;
+    }
+  },0);
   
   setupRH();
   renderSb();
@@ -848,6 +852,8 @@ function commitNew(){
   };
   tasks=tasks.filter(x=>x.id!==NID);
   tasks.push(newTask);
+  // Create fresh empty NID for next task
+  tasks.push({id:NID,agenda:'',color:'',date:null,subject:'',subSubject:'',recurrence:{type:'none'},description:'',notes:'',emails:[]});
   save();renderTable();
 }
 
