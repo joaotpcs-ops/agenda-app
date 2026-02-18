@@ -689,17 +689,31 @@ function renderTable(){
   document.getElementById('thead').innerHTML=h;
 
   let b='';
-  // Keep NID task in memory so inline field changes (agenda, subject etc) persist between renders
-  // But always show empty description in the input
+  sorted.forEach(t=>{b+=buildRow(t,false);});
+  
+  // Keep NID task in memory so inline field changes persist between renders
   let nid=tasks.find(t=>t.id===NID);
   if(!nid){
     nid={id:NID,agenda:'',color:'',date:null,subject:'',subSubject:'',recurrence:{type:'none'},description:'',notes:'',emails:[]};
     tasks.push(nid);
   }
-  nid.description=''; // always blank description in new row
-  b+=buildRow(nid,true);
-  sorted.forEach(t=>{b+=buildRow(t,false);});
-  document.getElementById('tbody').innerHTML=b;
+  nid.description=''; // always blank description
+  
+  const tbody=document.getElementById('tbody');
+  const existingNewRow=tbody.querySelector('tr.nr');
+  
+  if(!existingNewRow){
+    // First render - create the new row
+    tbody.innerHTML=buildRow(nid,true)+b;
+  } else {
+    // Update existing rows but keep new row intact to preserve select states
+    const rows=tbody.querySelectorAll('tr:not(.nr)');
+    rows.forEach(row=>row.remove());
+    sorted.forEach(t=>{
+      tbody.insertAdjacentHTML('beforeend',buildRow(t,false));
+    });
+  }
+  
   setupRH();
   renderSb();
 }
