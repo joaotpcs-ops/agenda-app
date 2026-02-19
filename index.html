@@ -640,6 +640,35 @@ function toggleFilt(key,val,checked){
 }
 function clearFilt(key){filt[key]=[];renderTable();}
 
+let textFilterTimeout=null;
+function updateTextFilter(key,val){
+  filt[key]=val;
+  // Update only tbody without re-rendering header (keeps input focused)
+  clearTimeout(textFilterTimeout);
+  textFilterTimeout=setTimeout(()=>{
+    const filtered=getFiltered();
+    const sorted=getSorted(filtered);
+    let b='';
+    let nid=tasks.find(t=>t.id===NID);
+    if(!nid){
+      nid={id:NID,agenda:'',color:'',date:null,subject:'',subSubject:'',recurrence:{type:'none'},description:'',notes:'',emails:[]};
+      tasks.push(nid);
+    }
+    nid.description='';
+    b+=buildRow(nid,true);
+    sorted.forEach(t=>{b+=buildRow(t,false);});
+    document.getElementById('tbody').innerHTML=b;
+    setupRH();
+    renderSb();
+  },300); // 300ms debounce
+}
+function clearTextFilter(key){
+  filt[key]='';
+  const inp=document.getElementById('txtfilt-'+key);
+  if(inp)inp.value='';
+  renderTable();
+}
+
 // ── RENDER TABLE ───────────────────────────────────────────
 function renderTable(){
   const filtered=getFiltered();
@@ -695,10 +724,10 @@ function renderTable(){
     }else if(col.fkey&&col.ftxt){
       const cur=filt[col.fkey]||'';
       fdd=`<div class="fdd" id="fdd-${col.id}" style="padding:6px;">
-        <input type="text" placeholder="PESQUISAR..." value="${escH(cur)}"
+        <input type="text" placeholder="PESQUISAR..." value="${escH(cur)}" id="txtfilt-${col.fkey}"
           style="width:100%;padding:4px 7px;background:var(--bg3);border:1px solid var(--brd);border-radius:4px;color:var(--t1);font-size:10px;text-transform:uppercase;"
-          oninput="filt['${col.fkey}']=this.value;renderTable()" onclick="event.stopPropagation()">
-        ${cur?`<button onclick="filt['${col.fkey}']='';renderTable()" style="margin-top:4px;font-size:9px;background:none;border:none;color:var(--t3);cursor:pointer;text-transform:uppercase;width:100%;text-align:right;">× LIMPAR</button>`:''}
+          oninput="updateTextFilter('${col.fkey}',this.value)" onclick="event.stopPropagation()">
+        ${cur?`<button onclick="clearTextFilter('${col.fkey}')" style="margin-top:4px;font-size:9px;background:none;border:none;color:var(--t3);cursor:pointer;text-transform:uppercase;width:100%;text-align:right;">× LIMPAR</button>`:''}
       </div>`;
     }
     h+=`<th style="${w}"><div class="thb"><span class="thl">${col.lbl}</span>${ctrl}</div>${fdd}<div class="rh" data-col="${col.id}"></div></th>`;
@@ -917,6 +946,8 @@ function applyDate(val){
   const label=document.getElementById('dl-'+t.id);
   if(label) label.textContent=val?fmtDate(val):'—';
   save();
+  // Re-render to re-sort by date
+  setTimeout(()=>renderTable(),100);
 }
 
 // ── DELETE ─────────────────────────────────────────────────
