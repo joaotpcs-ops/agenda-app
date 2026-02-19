@@ -98,7 +98,7 @@ th{border-bottom:2px solid var(--brd);border-right:1px solid var(--brd);position
 /* ROWS */
 td{padding:2px 5px;border-bottom:1px solid var(--brd);border-right:1px solid var(--brd);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;height:26px;position:relative;}
 tr:hover td{background:#ffffff05;}
-.nr td{background:#091509!important;border-bottom:1px dashed var(--acc)!important;}
+.nr td{background:#0a1f0a!important;border-bottom:2px solid var(--acc)!important;}
 .cbar{position:absolute;left:0;top:0;bottom:0;width:8px;}
 .sdot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--acc);margin-right:4px;vertical-align:middle;}
 
@@ -749,9 +749,8 @@ function buildRow(t,isNew){
   return`<tr class="${isNew?'nr':''}"${dbl}>
     <td>
       <select class="isel" onchange="uAg('${tid}',this.value)" onclick="event.stopPropagation()">
-        ${isNew?`<option value="" disabled ${!t.agenda?'selected':''}>—</option>`:''}
+        ${isNew?`<option value="" disabled ${!t.agenda?'selected':''}>—</option><option value="__NA__">+ NOVA...</option>`:''}
         ${agOpts}
-        ${isNew?`<option value="__NA__">+ NOVA...</option>`:''}
       </select>
     </td>
     <td data-dc="1" style="cursor:pointer;" onclick="event.stopPropagation();openDP(event,'${tid}')" ondblclick="event.stopPropagation()">
@@ -761,10 +760,10 @@ function buildRow(t,isNew){
     <td><select class="isel" onchange="uRec('${tid}',this.value)" onclick="event.stopPropagation()" ${noDate?'disabled':''}>
       ${recOpts}</select></td>
     <td><select class="isel" onchange="uSub('${tid}',this.value)" onclick="event.stopPropagation()">
-      <option value="__NS__">+ NOVO...</option><option value="">—</option>${subOpts}
+      <option value="" ${!t.subject?'selected':''}>—</option><option value="__NS__">+ NOVO...</option>${subOpts}
     </select></td>
     <td><select class="isel" onchange="uSub2('${tid}',this.value)" onclick="event.stopPropagation()">
-      <option value="__NS2__">+ NOVO...</option><option value="">—</option>${sub2Opts}
+      <option value="" ${!t.subSubject?'selected':''}>—</option><option value="__NS2__">+ NOVO...</option>${sub2Opts}
     </select></td>
     <td>${isNew
       ?`<input class="itxt" placeholder="PREENCHER" value="${escH(t.description||'')}"
@@ -778,7 +777,7 @@ function buildRow(t,isNew){
     <td>${emailsHTML}</td>
     <td style="text-align:center;">${t.notes?'✓':'—'}</td>
     <td style="text-align:center;" ondblclick="event.stopPropagation()">
-      ${isNew?`<span style="font-size:8px;color:var(--acc);">NOVA</span>`
+      ${isNew?``
              :`<span style="display:flex;gap:4px;justify-content:center;">
                 <span style="cursor:pointer;" onclick="event.stopPropagation();duplicateTask('${tid}')" title="DUPLICAR">📋</span>
                 <span style="cursor:pointer;" onclick="event.stopPropagation();delDirect('${tid}')" title="ELIMINAR">🗑️</span>
